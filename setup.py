@@ -1,8 +1,14 @@
+from pathlib import Path
+
 from setuptools import setup, find_packages
+
+
+_HERE = Path(__file__).resolve().parent
+_LONG_DESCRIPTION = (_HERE / "README.md").read_text(encoding="utf-8")
 
 setup(
     name='loomaa',
-    version='0.1.0',
+    version='0.1.1',
     packages=find_packages(),
     install_requires=[
         "typer>=0.9.0",
@@ -22,7 +28,7 @@ setup(
     },
     author='Abiodun Adenugba',
     description='DevOps-native semantic model compiler for Microsoft Fabric',
-    long_description=open('README.md', encoding='utf-8').read(),
+    long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     license='Apache-2.0',
     python_requires='>=3.8',
