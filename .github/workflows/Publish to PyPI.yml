@@ -3,10 +3,12 @@ name: Publish to PyPI
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
 
 jobs:
   build-and-publish:
+    # Skip prerelease tags like v0.1.0rc1, v0.1.0a1, v0.1.0b1
+    if: ${{ !contains(github.ref_name, 'rc') && !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') }}
     runs-on: ubuntu-latest
 
     steps:
