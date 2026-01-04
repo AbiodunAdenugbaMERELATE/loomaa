@@ -31,7 +31,7 @@ def generate_pbism_file(model_name):
 def generate_database_tmdl(model):
     """Generate database.tmdl file matching CE Accrual format"""
     return '''database
-\tcompatibilityLevel: 1567
+	compatibilityLevel: 1604
 
 '''
 

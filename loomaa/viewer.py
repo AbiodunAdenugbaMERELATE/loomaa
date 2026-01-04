@@ -11,15 +11,68 @@ import networkx as nx
 import os
 from typing import List, Dict, Any
 
+
+def _normalize_cardinality(value: Any) -> str:
+    if value is None:
+        return "Many-to-One"
+    text = str(value).strip()
+    if not text:
+        return "Many-to-One"
+
+    normalized = (
+        text.replace("RelationshipCardinality.", "")
+        .replace("_", "")
+        .replace("-", "")
+        .replace(" ", "")
+        .lower()
+    )
+
+    mapping = {
+        "manytoone": "Many-to-One",
+        "onetomany": "One-to-Many",
+        "onetoone": "One-to-One",
+        "manytomany": "Many-to-Many",
+    }
+    return mapping.get(normalized, text)
+
+
+def _normalize_cross_filter(value: Any) -> str:
+    if value is None:
+        return "Single"
+    text = str(value).strip()
+    if not text:
+        return "Single"
+
+    normalized = (
+        text.replace("CrossFilterDirection.", "")
+        .replace("RelationshipCrossFilteringBehavior.", "")
+        .replace("_", "")
+        .replace("-", "")
+        .replace(" ", "")
+        .lower()
+    )
+
+    mapping = {
+        "onedirection": "Single",
+        "singledirection": "Single",
+        "single": "Single",
+        "bothdirections": "Both",
+        "both": "Both",
+        "none": "None",
+    }
+    return mapping.get(normalized, text)
+
 def create_relationship_diagram(relationships: List[Dict], tables: List[Dict]):
-    """Create clean ER diagram with rounded squares and grid layout"""
+    """Create a clean relationship diagram.
+
+    Tries to present a star-schema-friendly layout: the highest-degree table is centered,
+    and other tables are arranged around it.
+    """
     
     if not relationships:
-        st.info("🔗 No relationships defined in this model.")
+        st.info("No relationships defined in this model.")
         return
     
-    import networkx as nx
-    import plotly.graph_objects as go
     import math
     
     # Create network graph
@@ -30,30 +83,30 @@ def create_relationship_diagram(relationships: List[Dict], tables: List[Dict]):
         table_name = table.get('name', 'Unknown')
         G.add_node(table_name)
     
-    # Add relationship edges  
+    # Add relationship edges
     for rel in relationships:
         from_table = rel.get('from_table', 'Unknown')
         to_table = rel.get('to_table', 'Unknown') 
         G.add_edge(from_table, to_table, 
-                  cardinality=rel.get('cardinality', 'Many-to-One'))
-    
-    # Create grid layout instead of linear
+                  cardinality=_normalize_cardinality(rel.get('cardinality')))
+
+    # Star-friendly layout: center the most connected table
     nodes = list(G.nodes())
-    num_nodes = len(nodes)
-    
-    # Calculate grid dimensions
-    cols = math.ceil(math.sqrt(num_nodes))
-    rows = math.ceil(num_nodes / cols)
-    
-    # Position nodes in a grid
-    pos = {}
-    for i, node in enumerate(nodes):
-        row = i // cols
-        col = i % cols
-        # Center the grid and add some spacing
-        x = (col - (cols-1)/2) * 3
-        y = (row - (rows-1)/2) * 2
-        pos[node] = (x, y)
+    if not nodes:
+        st.info("No tables/relationships to visualize.")
+        return
+
+    degrees = dict(G.degree())
+    center = max(degrees, key=lambda n: degrees.get(n, 0))
+    others = [n for n in nodes if n != center]
+
+    pos: Dict[str, tuple[float, float]] = {center: (0.0, 0.0)}
+    if others:
+        radius = 3.2
+        step = (2 * math.pi) / len(others)
+        for idx, node in enumerate(sorted(others)):
+            angle = idx * step
+            pos[node] = (radius * math.cos(angle), radius * math.sin(angle))
     
     # Create plotly figure
     fig = go.Figure()
@@ -75,7 +128,7 @@ def create_relationship_diagram(relationships: List[Dict], tables: List[Dict]):
         
         # Add cardinality label in the middle
         mid_x, mid_y = (x0 + x1) / 2, (y0 + y1) / 2
-        cardinality = edge[2].get('cardinality', 'Many-to-One')
+        cardinality = _normalize_cardinality(edge[2].get('cardinality'))
         
         fig.add_annotation(
             x=mid_x, y=mid_y,
@@ -111,7 +164,7 @@ def create_relationship_diagram(relationships: List[Dict], tables: List[Dict]):
     # Clean layout - no title
     fig.update_layout(
         showlegend=False,
-        height=400,
+        height=440,
         xaxis={'showgrid': False, 'zeroline': False, 'showticklabels': False},
         yaxis={'showgrid': False, 'zeroline': False, 'showticklabels': False},
         plot_bgcolor='white',
@@ -126,13 +179,13 @@ def create_relationship_diagram(relationships: List[Dict], tables: List[Dict]):
     )
     
     # Also show the clean text relationships
-    st.markdown("### 🔗 Relationship Details")
+    st.markdown("### Relationship Details")
     for rel in relationships:
         from_table = rel.get('from_table', 'Unknown')
         to_table = rel.get('to_table', 'Unknown')
         from_col = rel.get('from_column', '')
         to_col = rel.get('to_column', '')
-        cardinality = rel.get('cardinality', 'Many-to-One')
+        cardinality = _normalize_cardinality(rel.get('cardinality'))
         st.write(f"**{from_table}.{from_col}** → **{to_table}.{to_col}** ({cardinality})")
 
 def load_models() -> List[Dict[str, Any]]:
@@ -206,9 +259,9 @@ def render_table_card(table: Dict[str, Any], index: int):
             
             df = pd.DataFrame(columns_data)
             st.dataframe(
-                df, 
-                width='stretch', 
+                df,
                 hide_index=True,
+                width='stretch',
                 column_config={
                     '📋 Column': st.column_config.TextColumn(width="medium"),
                     '🏷️ Type': st.column_config.TextColumn(width="small"),
@@ -224,13 +277,13 @@ def main():
     
     # Page configuration
     st.set_page_config(
-        page_title="🔮 Loomaa Model Viewer",
-        page_icon="🔮",
+        page_title="Loomaa Model Viewer",
+        page_icon="L",
         layout="wide",
         initial_sidebar_state="expanded",
         menu_items={
-            'Get Help': 'https://github.com/yourusername/loomaa',
-            'Report a bug': 'https://github.com/yourusername/loomaa/issues',
+            'Get Help': None,
+            'Report a bug': None,
             'About': """
             # Loomaa Model Viewer
             Professional semantic model viewer for Microsoft Fabric.
@@ -318,10 +371,17 @@ def main():
         color: #212529;
     }
     
-    /* Sidebar styling */
-    .css-1d391kg {
+    /* Sidebar styling (stable selectors) */
+    [data-testid="stSidebar"] {
         background-color: #f8f9fa;
         color: #212529;
+        border-right: 1px solid #dee2e6;
+    }
+
+    /* Make sidebar content breathe a bit */
+    [data-testid="stSidebar"] .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
     }
     
     /* Content areas should be white */
@@ -353,16 +413,16 @@ def main():
     # Header section
     st.markdown("""
     <div class="model-header">
-        <h1>🔮 Loomaa Model Viewer</h1>
+        <h1>Loomaa Model Viewer</h1>
     </div>
     """, unsafe_allow_html=True)
     
     # Load models
-    with st.spinner("🔄 Loading compiled models..."):
+    with st.spinner("Loading compiled models..."):
         models = load_models()
     
     if not models:
-        st.error("❌ **No compiled models found.**")
+        st.error("No compiled models found.")
         st.info("""
         **To get started:**
         1. Run `loomaa compile` in your project directory
@@ -373,7 +433,7 @@ def main():
     
     # Sidebar - Model Selection & Info
     with st.sidebar:
-        st.markdown("## 🎯 Model Selection")
+        st.markdown("## Model Selection")
         
         model_names = [m.get('name', f"Model {i+1}") for i, m in enumerate(models)]
         selected_model_name = st.selectbox(
@@ -395,8 +455,8 @@ def main():
         
         # Minimal sidebar - no stats to prevent scrolling
         st.divider()
-        st.markdown("### 🔧 Actions")
-        if st.button("🔄 Refresh Models", help="Reload models from compiled folder"):
+        st.markdown("### Actions")
+        if st.button("Refresh models", help="Reload models from compiled folder"):
             st.rerun()
     
     # Main content area
@@ -407,7 +467,7 @@ def main():
     total_columns = sum(len(table.get('columns', [])) for table in tables)
     
     # Overview metrics row
-    st.markdown("## 📈 Model Overview")
+    st.markdown("## Model Overview")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -441,16 +501,16 @@ def main():
     st.divider()
     
     # Main tabbed interface - Power BI Model View style
-    tab1, tab2, tab3 = st.tabs(["📊 **Tables**", "🔗 **Relationships**", "📈 **Measures**"])
+    tab1, tab2, tab3 = st.tabs(["Tables", "Relationships", "Measures"])
     
     with tab1:
-        st.markdown("## 📊 Table Explorer")
+        st.markdown("## Table Explorer")
         
         if not tables:
             st.info("📋 No tables found in this model.")
         else:
             # Search and filter
-            search_term = st.text_input("🔍 Search tables:", placeholder="Type to filter tables...")
+            search_term = st.text_input("Search tables:", placeholder="Type to filter tables...")
             
             filtered_tables = tables
             if search_term:
@@ -472,13 +532,13 @@ def main():
     with tab2:
         if relationships:
             # Interactive relationship diagram
-            st.markdown("### 🎯 Visual Relationship Map")
+            st.markdown("### Visual Relationship Map")
             create_relationship_diagram(relationships, tables)
             
             st.divider()
             
             # Relationship details table
-            st.markdown("### 📋 Relationship Details")
+            st.markdown("### Relationship Details")
             
             rel_data = []
             for rel in relationships:
@@ -487,16 +547,16 @@ def main():
                     '📋 From Column': rel.get('from_column', 'Unknown'),
                     '🗂️ To Table': rel.get('to_table', 'Unknown'),
                     '📋 To Column': rel.get('to_column', 'Unknown'),
-                    '🔢 Cardinality': rel.get('cardinality', 'Many-to-One'),
-                    '🔄 Cross Filter': rel.get('cross_filter_direction', 'Single'),
-                    '✅ Active': rel.get('is_active', True)
+                    '🔢 Cardinality': _normalize_cardinality(rel.get('cardinality')),
+                    '🔄 Cross Filter': _normalize_cross_filter(rel.get('cross_filter_direction')),
+                    '✅ Active': bool(rel.get('is_active', True))
                 })
             
             df_relationships = pd.DataFrame(rel_data)
             st.dataframe(
-                df_relationships, 
-                width='stretch', 
+                df_relationships,
                 hide_index=True,
+                width='stretch',
                 column_config={
                     '🔢 Cardinality': st.column_config.SelectboxColumn(
                         options=['One-to-Many', 'Many-to-One', 'One-to-One', 'Many-to-Many']
@@ -509,18 +569,18 @@ def main():
             )
             
         else:
-            st.info("🔗 No relationships defined in this model.")
+            st.info("No relationships defined in this model.")
             st.markdown("""
             **💡 Tip:** Relationships connect your tables and enable cross-filtering in reports.
             Add relationships in your model.py file to see them here.
             """)
     
     with tab3:
-        st.markdown("## 📈 Measure Library")
+        st.markdown("## Measure Library")
         
         if measures:
             # Search measures
-            measure_search = st.text_input("🔍 Search measures:", placeholder="Type to filter measures...")
+            measure_search = st.text_input("Search measures:", placeholder="Type to filter measures...")
             
             filtered_measures = measures
             if measure_search:
@@ -580,9 +640,9 @@ def main():
     st.divider()
     st.markdown("""
     <div style='text-align: center; padding: 1.5rem; color: #666; background: #f8f9fa; border-radius: 12px; margin-top: 1rem;'>
-        <h4 style='color: #2c3e50; margin-bottom: 0.5rem;'>🔮 Loomaa</h4>
+        <h4 style='color: #2c3e50; margin-bottom: 0.5rem;'>Loomaa</h4>
         <p style='margin-bottom: 0.5rem;'><strong>Semantic Model as Code for Microsoft Fabric</strong></p>
-        <p style='font-size: 0.9rem; opacity: 0.8;'>by <strong>Abiodun Adenugba</strong></p>
+        <p style='font-size: 0.9rem; opacity: 0.8;'>Created by <strong>Abiodun Adenugba</strong></p>
     </div>
     """, unsafe_allow_html=True)
 

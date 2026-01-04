@@ -1,10 +1,9 @@
 """Lightweight bootstrapper for the loomaa console script.
 
 This module intentionally uses only the Python stdlib for its top-level code so
-the console entry point can run even if runtime dependencies (typer, fastapi)
-are missing. It offers to create a local virtualenv or install dependencies
-into the current environment, then delegates to the real CLI in
-`loomaa.cli`.
+the console entry point can run even if runtime dependencies are missing.
+It offers to create a local virtualenv or install dependencies into the current
+environment, then delegates to the real CLI in `loomaa.cli`.
 """
 from __future__ import annotations
 
@@ -17,11 +16,15 @@ from typing import List
 
 RUNTIME_REQUIREMENTS: List[str] = [
     "typer>=0.9.0",
-    "fastapi>=0.104.0",
-    "uvicorn>=0.24.0",
-    "msal>=1.27.0", 
+    "pydantic>=2.0.0",
+    "msal>=1.27.0",
     "requests>=2.31.0",
     "jinja2>=3.1.0",
+    # Viewer deps
+    "streamlit>=1.28.0",
+    "plotly>=5.17.0",
+    "networkx>=3.2.0",
+    "pandas>=2.0.0",
 ]
 
 
@@ -55,11 +58,14 @@ def _check_dependencies() -> bool:
     """Check if runtime dependencies are available"""
     try:
         import typer
-        import fastapi
-        import uvicorn
+        import pydantic
         import msal
         import requests
         import jinja2
+        import streamlit
+        import plotly
+        import networkx
+        import pandas
         return True
     except ImportError:
         return False
@@ -76,7 +82,7 @@ def main(argv: List[str] | None = None) -> int:
     if _check_dependencies():
         try:
             from loomaa import cli
-            return cli.app(argv)
+            return cli.run(argv)
         except Exception as e:
             print(f"❌ Loomaa CLI error: {e}")
             return 1
@@ -94,7 +100,7 @@ def main(argv: List[str] | None = None) -> int:
         if _check_dependencies():
             print("🚀 Running your Loomaa command now...")
             from loomaa import cli
-            return cli.app(argv)
+            return cli.run(argv)
         else:
             print("⚠️  Installation verification failed.")
             
@@ -115,7 +121,7 @@ def main(argv: List[str] | None = None) -> int:
         except Exception as e:
             print(f"❌ Setup failed: {e}")
             print("🛠️  Manual installation:")
-            print("     pip install typer fastapi uvicorn msal requests jinja2")
+            print("     pip install typer pydantic msal requests jinja2")
             return 2
     
     return 0

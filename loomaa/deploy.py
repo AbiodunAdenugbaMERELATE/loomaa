@@ -256,6 +256,18 @@ def deploy_complete_semantic_model(model_name, semantic_model_path):
                 "payload": database_base64,
                 "payloadType": "InlineBase64"
             })
+
+        # 2b. Read expressions.tmdl (needed for DirectLake expressionSource)
+        expressions_tmdl_path = os.path.join(definition_dir, "expressions.tmdl")
+        if os.path.exists(expressions_tmdl_path):
+            with open(expressions_tmdl_path, 'r', encoding='utf-8') as f:
+                expr_content = f.read()
+            expr_base64 = base64.b64encode(expr_content.encode('utf-8')).decode('utf-8')
+            payload_parts.append({
+                "path": "definition/expressions.tmdl",
+                "payload": expr_base64,
+                "payloadType": "InlineBase64"
+            })
         
         # 3. Read all table files from tables/ directory
         tables_dir = os.path.join(definition_dir, "tables")
@@ -296,6 +308,21 @@ def deploy_complete_semantic_model(model_name, semantic_model_path):
                     payload_parts.append({
                         "path": f"definition/cultures/{culture_file}",
                         "payload": culture_base64,
+                        "payloadType": "InlineBase64"
+                    })
+
+        # 5b. Read roles/*.tmdl if exists
+        roles_dir = os.path.join(definition_dir, "roles")
+        if os.path.exists(roles_dir):
+            for role_file in os.listdir(roles_dir):
+                if role_file.endswith('.tmdl'):
+                    role_path = os.path.join(roles_dir, role_file)
+                    with open(role_path, 'r', encoding='utf-8') as f:
+                        role_content = f.read()
+                    role_base64 = base64.b64encode(role_content.encode('utf-8')).decode('utf-8')
+                    payload_parts.append({
+                        "path": f"definition/roles/{role_file}",
+                        "payload": role_base64,
                         "payloadType": "InlineBase64"
                     })
         

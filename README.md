@@ -1,123 +1,95 @@
-# Test Sales Model Semantic Model
+\# Loomaa
 
-This is a Loomaa semantic model project for Microsoft Power BI, built using modern semantic modeling practices.
+Semantic Model as Code for Microsoft Fabric / Power BI.
 
-## Project Structure
+Loomaa provides an end-to-end workflow:
 
-```
-test_project/
-├── loomaa.dsl              # Main model definition with Jinja templates
-├── .env                    # Authentication credentials (keep secure!)
-├── models/                 # Python model definitions
-│   ├── __init__.py
-│   ├── model_definition.py # Programmatic model factory
-│   └── tables.py          # Table definitions with advanced DAX
-├── compiled/              # Generated build artifacts
-│   ├── model.tmdl         # Tabular Model Definition Language
-│   ├── model.json         # JSON representation
-│   └── README.md
-├── requirements.txt       # Python dependencies
-└── README.md             # This file
-```
+- `loomaa init` – scaffold an example project
+- `loomaa compile` – generate a Fabric/PBIP `.SemanticModel` (TMDL)
+- `loomaa view` – local interactive model viewer (Streamlit)
+- `loomaa deploy` – deploy to a Fabric workspace via REST API
 
-## Getting Started
+## Install
 
-### 1. Configure Authentication
-Edit `.env` with your Microsoft Fabric credentials:
+End users:
 
 ```bash
-# Microsoft Fabric Authentication (Required)
-FABRIC_TENANT_ID=your-azure-ad-tenant-id
-FABRIC_CLIENT_ID=your-app-registration-client-id
-FABRIC_CLIENT_SECRET=your-client-secret
-FABRIC_WORKSPACE_ID=your-power-bi-workspace-id
-FABRIC_XMLA_ENDPOINT=powerbi://api.powerbi.com/v1.0/myorg/your-workspace
-
-# Data Source Connections
-# For same-workspace lakehouse/warehouse: No additional config needed
-# For cross-workspace or external: Add specific connection details
-WAREHOUSE_CONNECTION=your-warehouse-connection-string
-LAKEHOUSE_NAME=your-lakehouse-name
+pip install loomaa
 ```
 
-**Connection Types:**
-- **DirectLake**: Direct access to lakehouse/warehouse in same workspace (fastest)
-- **Import**: Copy data into semantic model (traditional)
+## Quickstart
 
-### 2. Build the Model
+Create a new project:
+
+```bash
+loomaa init my-model
+cd my-model
+```
+
+Fill in `.env` (created by `init`) with your Fabric IDs:
+
+- `FABRIC_TENANT_ID`
+- `FABRIC_CLIENT_ID`
+- `FABRIC_CLIENT_SECRET`
+- `FABRIC_WORKSPACE_ID`
+- `FABRIC_DIRECTLAKE_ITEM_ID`
+- `FABRIC_SQL_SERVER`
+- `FABRIC_SQL_DATABASE`
+
+Compile the model:
+
 ```bash
 loomaa compile
 ```
 
-### 3. View Interactive Model
+View the model locally:
+
 ```bash
 loomaa view
 ```
-This launches a Power BI-style model viewer in your browser.
 
-### 4. Deploy to Power BI
+Deploy to Fabric:
+
 ```bash
 loomaa deploy
 ```
 
-## Import Mode Semantic Models - Complete Guide
+## Output
 
-Loomaa's Import mode is perfect for traditional semantic models where data is copied into the model for fast query performance. Here's how to build complete Import mode models:
+After `loomaa compile`, output is written under `compiled/`:
 
-### Creating Tables with Columns
+- `compiled/<model>/model.json` – viewer-friendly JSON
+- `compiled/<model>/<model>.SemanticModel/` – Fabric/PBIP semantic model artifact
 
-```python
-from loomaa.model import SemanticModel, Table, Column, Measure, Relationship
+## Repository Layout
 
-# Create semantic model
-model = SemanticModel(name="Sales Analysis", description="Import mode sales model")
+This repository uses a standard Python layout:
 
-# Define fact table with proper columns
-sales_table = Table(
-    name="Sales",
-    mode="Import",
-    description="Sales transactions",
-    source_query="SELECT * FROM fact_sales"  # SQL query or table reference
-)
+- `setup.py` / `requirements.txt` live in this folder
+- `loomaa/` (package code) contains the CLI, compiler, deploy, and viewer
+- `tests/` contains automated tests
 
-# Add columns with data types and formatting
-sales_table.add_column(Column("SalesID", "Integer", "Unique sale identifier"))
-sales_table.add_column(Column("CustomerID", "Integer", "Customer reference"))
-sales_table.add_column(Column("ProductID", "Integer", "Product reference"))
-sales_table.add_column(Column("OrderDate", "DateTime", "Sale date", format_string="mm/dd/yyyy"))
-sales_table.add_column(Column("Revenue", "Currency", "Sale amount", format_string="$#,##0.00"))
-sales_table.add_column(Column("Quantity", "Integer", "Items sold"))
+## Contributing
 
-# Add calculated columns
-from loomaa.model import CalculatedColumn
-profit_margin = CalculatedColumn(
-    name="Profit Margin %",
-    expression="DIVIDE([Revenue] - [Cost], [Revenue], 0) * 100",
-    description="Profit margin percentage"
-)
-sales_table.calculated_columns.append(profit_margin)
+Pull requests are welcome. See CONTRIBUTING for the full guide:
 
-# Add table-level measures
-total_sales = Measure(
-    name="Total Sales",
-    expression="SUM(Sales[Revenue])",
-    description="Sum of all sales revenue",
-    format_string="$#,##0"
-)
-sales_table.add_measure(total_sales)
+- CONTRIBUTING.md
 
-model.add_table(sales_table)
+### Dev setup
+
+```bash
+python -m venv .venv
+\# Windows:
+.venv\Scripts\activate
+
+pip install -r requirements.txt
+pytest -q
 ```
 
-### Creating Dimension Tables
+### Notes
 
-```python
-# Customer dimension
-customer_table = Table(
-    name="Customer",
-    mode="Import",
-    description="Customer master data",
-    source_query="SELECT * FROM dim_customer"
+- Do not commit `.env` (it contains secrets)
+- Generated artifacts like `compiled/`, `test_compiled/`, and `*.egg-info/` should not be committed
 )
 
 customer_table.add_column(Column("CustomerID", "Integer", "Primary key", is_key=True))

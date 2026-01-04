@@ -5,6 +5,11 @@ setup(
     version='0.1.0',
     packages=find_packages(),
     install_requires=[
+        "typer>=0.9.0",
+        "pydantic>=2.0.0",
+        "jinja2>=3.1.0",
+        "requests>=2.31.0",
+        "msal>=1.27.0",
         "streamlit>=1.28.0",
         "plotly>=5.17.0",
         "networkx>=3.2.0", 

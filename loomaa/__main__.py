@@ -3,7 +3,7 @@
 Main entry point for the loomaa package when run as a module.
 """
 
-from .cli import app
+from .cli import run
 
 if __name__ == "__main__":
-    app()
+    raise SystemExit(run())

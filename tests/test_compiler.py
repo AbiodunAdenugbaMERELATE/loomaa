@@ -1,25 +1,27 @@
 
 from pathlib import Path
 
-from loomaa.compiler import compile_model
-from loomaa import cli
+from loomaa.cli import init as cli_init
+from loomaa.cli import compile as cli_compile
 
 
 def test_compile_model(tmp_path, monkeypatch):
 	project_dir = tmp_path / "demo_project"
 	monkeypatch.chdir(tmp_path)
 
-	cli.init("demo_project")
+	cli_init("demo_project")
 	monkeypatch.chdir(project_dir)
 
-	compile_model()
+	cli_compile()
 
-	tmdl_path = Path("compiled") / "model.tmdl"
-	json_path = Path("compiled") / "model.json"
+	model_json = Path("compiled") / "example" / "model.json"
+	model_tmdl = Path("compiled") / "example" / "example.SemanticModel" / "definition" / "model.tmdl"
+	roles_dir = Path("compiled") / "example" / "example.SemanticModel" / "definition" / "roles"
 
-	assert tmdl_path.exists()
-	assert json_path.exists()
+	assert model_json.exists()
+	assert model_tmdl.exists()
+	assert roles_dir.exists()
 
-	content = tmdl_path.read_text(encoding="utf-8")
-	assert "table Sales" in content
-	assert "measure Total Sales" in content
+	content = model_tmdl.read_text(encoding="utf-8")
+	assert "ref table" in content
+	assert "ref role" in content
